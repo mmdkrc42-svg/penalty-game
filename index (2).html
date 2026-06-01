@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penalty Rush</title>
+<!-- Telegram WebApp SDK — must load before any tg references -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green:   #16a34a;
+  --green-l: #22c55e;
+  --green-d: #052e16;
+  --gold:    #f59e0b;
+  --gold-l:  #fde68a;
+  --red:     #ef4444;
+  --purple:  #a855f7;
+  --blue:    #3b82f6;
+  --bg:      #060d06;
+  --surface: #0e1a0e;
+  --surface2:#152115;
+  --border:  rgba(34,197,94,0.15);
+  --text:    #e8f5e8;
+  --muted:   #6b8f6b;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px 40px;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(22,163,74,0.18) 0%, transparent 70%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(34,197,94,0.03) 39px, rgba(34,197,94,0.03) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(34,197,94,0.03) 39px, rgba(34,197,94,0.03) 40px);
+}
+
+/* HEADER */
+header {
+  width: 100%; max-width: 480px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: var(--green-l);
+  text-shadow: 0 0 30px rgba(34,197,94,0.5);
+}
+.balance-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px; font-weight: 500;
+}
+.balance-pill .star { color: var(--gold); font-size: 16px; }
+#balance-display { color: var(--gold-l); font-weight: 600; min-width: 48px; }
+
+/* CANVAS WRAPPER */
+.pitch-wrap {
+  width: 100%; max-width: 480px;
+  position: relative;
+  margin-top: 20px;
+}
+canvas {
+  width: 100%; border-radius: 16px;
+  display: block;
+  border: 1px solid var(--border);
+}
+.result-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.result-badge {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 56px;
+  letter-spacing: 4px;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  text-shadow: 0 4px 24px rgba(0,0,0,0.8);
+}
+.result-badge.show { opacity: 1; transform: scale(1); }
+.result-badge.win  { color: var(--green-l); }
+.result-badge.lose { color: var(--red); }
+
+/* STAKE SELECTOR */
+.section-label {
+  width: 100%; max-width: 480px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+.stakes {
+  width: 100%; max-width: 480px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.stake-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.stake-btn:hover { border-color: rgba(34,197,94,0.4); background: var(--surface2); }
+.stake-btn.active {
+  border-color: var(--green-l);
+  box-shadow: 0 0 16px rgba(34,197,94,0.2);
+}
+.stake-btn .tier-name {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted);
+}
+.stake-btn .tier-cost {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; line-height: 1.1;
+  color: var(--text);
+}
+.stake-btn .tier-reward {
+  font-size: 11px; color: var(--gold);
+}
+.stake-btn .tier-odds {
+  font-size: 10px; color: var(--muted);
+  margin-top: 2px;
+}
+
+/* SHOOT BUTTONS */
+.shoot-row {
+  width: 100%; max-width: 480px;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px; margin-top: 8px;
+}
+.shoot-btn {
+  background: var(--green);
+  border: none; border-radius: 12px;
+  padding: 14px 8px;
+  color: white; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.shoot-btn:hover:not(:disabled) {
+  background: var(--green-l);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(34,197,94,0.3);
+}
+.shoot-btn:active:not(:disabled) { transform: scale(0.97); }
+.shoot-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* STATS */
+.stats-row {
+  width: 100%; max-width: 480px;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-top: 16px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.stat-val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px; color: var(--green-l);
+  line-height: 1;
+}
+.stat-lbl {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 13px; color: var(--text);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; white-space: nowrap;
+  z-index: 99;
+}
+.toast.show { opacity: 1; }
+
+/* STREAK */
+.streak-bar {
+  width: 100%; max-width: 480px;
+  height: 3px; background: var(--surface2);
+  border-radius: 2px; margin-top: 10px;
+  overflow: hidden;
+}
+.streak-fill {
+  height: 100%; background: linear-gradient(90deg, var(--green), var(--gold));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* ERROR STATE */
+#error-msg {
+  font-size: 13px; color: var(--red);
+  min-height: 18px;
+  margin-top: 6px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Penalty Rush</div>
+  <!-- shown only inside Telegram -->
+  <div id="tg-greeting" style="font-size:13px;color:var(--muted);display:none"></div>
+  <div class="balance-pill">
+    <span class="star">★</span>
+    <span id="balance-display">1000</span>
+  </div>
+</header>
+
+<div class="pitch-wrap">
+  <canvas id="game" width="480" height="340"></canvas>
+  <div class="result-overlay">
+    <div class="result-badge" id="result-badge">GOAL!</div>
+  </div>
+</div>
+
+<p id="error-msg"></p>
+
+<div class="section-label">Select Stake</div>
+<div class="stakes">
+  <div class="stake-btn active" data-stake="200" onclick="selectStake(200)">
+    <div class="tier-name">Rookie</div>
+    <div class="tier-cost">200★</div>
+    <div class="tier-reward">Win 300★</div>
+    <div class="tier-odds">70% odds</div>
+  </div>
+  <div class="stake-btn" data-stake="500" onclick="selectStake(500)">
+    <div class="tier-name">Amateur</div>
+    <div class="tier-cost">500★</div>
+    <div class="tier-reward">Win 800★</div>
+    <div class="tier-odds">55% odds</div>
+  </div>
+  <div class="stake-btn" data-stake="1000" onclick="selectStake(1000)">
+    <div class="tier-name">Pro</div>
+    <div class="tier-cost">1000★</div>
+    <div class="tier-reward">Win 2000★</div>
+    <div class="tier-odds">40% odds</div>
+  </div>
+  <div class="stake-btn" data-stake="5000" onclick="selectStake(5000)">
+    <div class="tier-name">Legend</div>
+    <div class="tier-cost">5000★</div>
+    <div class="tier-reward">Win 10k★</div>
+    <div class="tier-odds">25% odds</div>
+  </div>
+</div>
+
+<div class="section-label">Shoot Direction</div>
+<div class="shoot-row">
+  <button class="shoot-btn" id="btn-left"   onclick="shoot('left')">   ← Left   </button>
+  <button class="shoot-btn" id="btn-center" onclick="shoot('center')"> ● Centre </button>
+  <button class="shoot-btn" id="btn-right"  onclick="shoot('right')">  Right →  </button>
+</div>
+
+<div class="streak-bar"><div class="streak-fill" id="streak-fill" style="width:0%"></div></div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-val" id="stat-shots">0</div><div class="stat-lbl">Shots</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-goals">0</div><div class="stat-lbl">Goals</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-rate">—</div><div class="stat-lbl">Rate</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-streak">0</div><div class="stat-lbl">Streak</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── TELEGRAM WEBAPP BOOTSTRAP ──────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();    // tell Telegram the app is ready
+  tg.expand();   // request full-screen height
+}
+
+// ─── STATE ──────────────────────────────────────────────
+const API = '';  // empty = same origin (Flask serves both)
+let userId = null;
+let selectedStake = 200;
+let animating = false;
+let stats = { shots: 0, goals: 0, streak: 0 };
+let particles = [];
+
+// ─── CANVAS ─────────────────────────────────────────────
+const canvas = document.getElementById('game');
+const ctx    = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const GOAL = { x: 100, y: 30, w: 280, h: 110 };
+const KEEPER = { w: 52, h: 28 };
+
+let ball   = { x: W/2, y: H - 60, r: 13 };
+let keeper = { x: GOAL.x + GOAL.w/2 - KEEPER.w/2, y: GOAL.y + GOAL.h - KEEPER.h - 4 };
+
+// ─── INIT ────────────────────────────────────────────────
+async function init() {
+  try {
+    // Pass Telegram initData so the server can identify the user
+    const initData = tg?.initData || '';
+    const res  = await fetch(`${API}/create_user`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initData }),
+    });
+    const data = await res.json();
+    userId = data.user_id;
+    updateBalance(data.balance);
+
+    // Show personalised greeting inside Telegram
+    if (tg && data.first_name) {
+      const el = document.getElementById('tg-greeting');
+      el.textContent = 'Hey, ' + data.first_name + ' !';
+      el.style.display = 'block';
+    }
+
+    drawScene();
+  } catch(e) {
+    showError('Could not connect to server. Is Flask running on port 5000?');
+  }
+}
+
+// ─── STAKE SELECTOR ──────────────────────────────────────
+function selectStake(s) {
+  selectedStake = s;
+  document.querySelectorAll('.stake-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.stake) === s);
+  });
+}
+
+// ─── SHOOT ───────────────────────────────────────────────
+async function shoot(direction) {
+  if (animating || !userId) return;
+  setButtons(false);
+  clearError();
+
+  let result;
+  try {
+    const res = await fetch(`${API}/play`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, stake: selectedStake, direction })
+    });
+    result = await res.json();
+    if (result.error) { showError(result.error); setButtons(true); return; }
+  } catch(e) {
+    showError('Network error.'); setButtons(true); return;
+  }
+
+  animating = true;
+  const isWin = result.result === 'win';
+  const keeperDir = result.keeper_direction || direction;
+
+  // Target positions
+  const targetX = direction === 'left'  ? GOAL.x + 60 :
+                  direction === 'right' ? GOAL.x + GOAL.w - 60 :
+                                          GOAL.x + GOAL.w / 2;
+  const targetY = GOAL.y + GOAL.h * 0.35;
+
+  const keeperTargetX = keeperDir === 'left'  ? GOAL.x + 4 :
+                        keeperDir === 'right' ? GOAL.x + GOAL.w - KEEPER.w - 4 :
+                                                GOAL.x + GOAL.w/2 - KEEPER.w/2;
+
+  const startBX = ball.x, startBY = ball.y;
+  let t = 0;
+
+  const interval = setInterval(() => {
+    t = Math.min(t + 0.028, 1);
+    const p = easeOut(t);
+
+    const curve = direction === 'left' ? -35 : direction === 'right' ? 35 : 0;
+    ball.x = startBX + (targetX - startBX) * p + Math.sin(p * Math.PI) * curve;
+    ball.y = startBY + (targetY - startBY) * p;
+    ball.r = 13 - 4 * p;
+
+    keeper.x += (keeperTargetX - keeper.x) * 0.13;
+
+    // Particle sparks when close to goal
+    if (t > 0.8 && Math.random() < 0.4) {
+      spawnParticle(ball.x, ball.y, isWin ? '#22c55e' : '#ef4444');
+    }
+
+    tickParticles();
+    drawScene();
+
+    if (t >= 1) {
+      clearInterval(interval);
+
+      // Update stats
+      stats.shots++;
+      if (isWin) stats.goals++;
+      stats.streak = result.streak || 0;
+      updateStats();
+      updateBalance(result.balance);
+
+      // Flash badge
+      showBadge(isWin);
+      spawnBurst(ball.x, ball.y, isWin);
+
+      // Toast
+      if (isWin) {
+        showToast(`+${result.reward}★ profit: +${result.profit}★`);
+      } else {
+        showToast(`Saved! Lost ${result.lost}★`);
+      }
+
+      setTimeout(() => {
+        hideBadge();
+        ball   = { x: W/2, y: H - 60, r: 13 };
+        keeper.x = GOAL.x + GOAL.w/2 - KEEPER.w/2;
+        keeper.y = GOAL.y + GOAL.h - KEEPER.h - 4;
+        particles = [];
+        drawScene();
+        setButtons(true);
+        animating = false;
+      }, 900);
+    }
+  }, 16);
+}
+
+// ─── DRAW ────────────────────────────────────────────────
+function drawScene() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Pitch stripes
+  const stripes = 6, sh = H / stripes;
+  for (let i = 0; i < stripes; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#0a2e0a' : '#0b350b';
+    ctx.fillRect(0, i * sh, W, sh);
+  }
+
+  // Centre line
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Penalty arc
+  ctx.beginPath();
+  ctx.arc(W/2, H - 20, 90, Math.PI, 0);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Penalty spot
+  ctx.beginPath();
+  ctx.arc(W/2, H - 60, 3, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill();
+
+  // Net
+  const G = GOAL;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(G.x, G.y, G.w, G.h); ctx.clip();
+  ctx.strokeStyle = 'rgba(180,220,180,0.12)'; ctx.lineWidth = 0.8;
+  const cols = 14, rows = 8;
+  const cw = G.w / cols, ch = G.h / rows;
+  for (let c = 0; c <= cols; c++) {
+    ctx.beginPath(); ctx.moveTo(G.x + c*cw, G.y);
+    ctx.lineTo(G.x + c*cw + ch*0.4, G.y + G.h); ctx.stroke();
+  }
+  for (let r = 0; r <= rows; r++) {
+    ctx.beginPath(); ctx.moveTo(G.x, G.y + r*ch); ctx.lineTo(G.x + G.w, G.y + r*ch); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Goal posts
+  ctx.fillStyle = '#e2e8f0';
+  const pr = 5;
+  ctx.fillRect(G.x - pr, G.y - pr, pr*2, G.h + pr*2);
+  ctx.fillRect(G.x + G.w - pr, G.y - pr, pr*2, G.h + pr*2);
+  ctx.fillRect(G.x - pr, G.y - pr, G.w + pr*2, pr*2);
+
+  // Keeper shadow
+  const kMid = keeper.x + KEEPER.w/2;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(kMid, keeper.y + KEEPER.h + 3, KEEPER.w * 0.55, 5, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Keeper body
+  ctx.fillStyle = '#dc2626';
+  ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(keeper.x, keeper.y, KEEPER.w, KEEPER.h, 6);
+  ctx.fill(); ctx.stroke();
+
+  // Keeper number
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = 'bold 10px DM Sans'; ctx.textAlign = 'center';
+  ctx.fillText('GK', kMid, keeper.y + KEEPER.h - 8);
+
+  // Keeper gloves
+  ctx.fillStyle = '#fbbf24'; ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(keeper.x - 8, keeper.y + 2, 10, 12, 3); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(keeper.x + KEEPER.w - 2, keeper.y + 2, 10, 12, 3); ctx.fill(); ctx.stroke();
+
+  // Ball shadow
+  const shadowAlpha = 0.1 + 0.3 * (1 - (H - 60 - ball.y) / (H - 60 - (G.y + G.h/2)));
+  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+  ctx.beginPath();
+  ctx.ellipse(W/2, H - 56, 14, 5, 0, 0, Math.PI*2); ctx.fill();
+
+  // Ball
+  const grad = ctx.createRadialGradient(ball.x - ball.r*0.3, ball.y - ball.r*0.3, 0, ball.x, ball.y, ball.r);
+  grad.addColorStop(0, '#fff');
+  grad.addColorStop(1, '#cbd5e1');
+  ctx.fillStyle = grad;
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+  // Ball pentagon patches
+  ctx.fillStyle = 'rgba(30,41,59,0.7)';
+  drawPatch(ball.x, ball.y, ball.r * 0.35);
+
+  // Particles
+  for (const pt of particles) {
+    ctx.globalAlpha = pt.life;
+    ctx.fillStyle = pt.color;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+function drawPatch(cx, cy, r) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    i === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r) : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// ─── PARTICLES ──────────────────────────────────────────
+function spawnParticle(x, y, color) {
+  const a = Math.random() * Math.PI * 2;
+  const spd = 1 + Math.random() * 3;
+  particles.push({ x, y, vx: Math.cos(a)*spd, vy: Math.sin(a)*spd - 1.5, r: 2 + Math.random()*3, life: 1, color });
+}
+
+function spawnBurst(x, y, isWin) {
+  const colors = isWin
+    ? ['#22c55e','#86efac','#fde68a','#f59e0b','#fff']
+    : ['#ef4444','#fca5a5','#f97316'];
+  for (let i = 0; i < 30; i++) spawnParticle(x, y, colors[i % colors.length]);
+}
+
+function tickParticles() {
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.035;
+  });
+  particles = particles.filter(p => p.life > 0);
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+function setButtons(enabled) {
+  ['btn-left','btn-center','btn-right'].forEach(id => {
+    document.getElementById(id).disabled = !enabled;
+  });
+}
+
+function updateBalance(b) {
+  document.getElementById('balance-display').textContent = b.toLocaleString();
+}
+
+function updateStats() {
+  document.getElementById('stat-shots').textContent  = stats.shots;
+  document.getElementById('stat-goals').textContent  = stats.goals;
+  document.getElementById('stat-rate').textContent   = stats.shots ? Math.round(stats.goals / stats.shots * 100) + '%' : '—';
+  document.getElementById('stat-streak').textContent = stats.streak;
+  document.getElementById('streak-fill').style.width = Math.min(stats.streak * 20, 100) + '%';
+}
+
+function showBadge(isWin) {
+  const b = document.getElementById('result-badge');
+  b.textContent = isWin ? 'GOAL!' : 'SAVED!';
+  b.className = 'result-badge show ' + (isWin ? 'win' : 'lose');
+}
+function hideBadge() {
+  document.getElementById('result-badge').className = 'result-badge';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showError(msg) {
+  document.getElementById('error-msg').textContent = msg;
+}
+function clearError() {
+  document.getElementById('error-msg').textContent = '';
+}
+
+init();
+</script>
+</body>
+</html>
