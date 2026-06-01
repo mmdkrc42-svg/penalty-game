@@ -1,9 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-import random, uuid, os, hmac, hashlib, json
-from urllib.parse import unquote
-import asyncio
-from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, MenuButtonWebApp
+import random, uuid, os
 
 app = Flask(__name__, static_folder="static")
 
@@ -25,7 +21,6 @@ def index():
 
 @app.route("/create_user", methods=["POST"])
 def create_user():
-    data = request.json or {}
     user_id = str(uuid.uuid4())
     users[user_id] = {"balance": 1000, "goals": 0, "shots": 0, "wins": 0, "losses": 0, "streak": 0, "best_streak": 0, "first_name": "Player", "username": ""}
     return jsonify({"user_id": user_id, "balance": 1000, "first_name": "Player"})
@@ -66,16 +61,13 @@ def leaderboard():
     top = sorted(users.items(), key=lambda x: x[1]["balance"], reverse=True)[:5]
     return jsonify([{"name": u.get("first_name","?"), "balance": u["balance"], "wins": u["wins"]} for _, u in top])
 
-@app.route("/setup_bot", methods=["GET"])
+@app.route("/setup_bot")
 def setup_bot():
-    if not BOT_TOKEN or not WEBAPP_URL:
-        return jsonify({"error": "BOT_TOKEN or WEBAPP_URL not set"}), 400
-    async def _setup():
-        bot = Bot(token=BOT_TOKEN)
-        await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(text="⚽ Play", web_app=WebAppInfo(url=WEBAPP_URL)))
-        await bot.session.close()
-    asyncio.run(_setup())
-    return jsonify({"ok": True, "message": "Bot menu button set!"})
+    import requests
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/setChatMenuButton"
+    data = {"menu_button": '{"type":"web_app","text":"⚽ Play","web_app":{"url":"' + WEBAPP_URL + '"}}'}
+    r = requests.post(url, data=data)
+    return jsonify(r.json())
 
 if __name__ == "__main__":
     os.makedirs("static", exist_ok=True)
