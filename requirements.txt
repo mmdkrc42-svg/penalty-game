@@ -1,5 +1,3 @@
 flask
 requests
 gunicorn
-aiogram>=3.0
-aiohttp
