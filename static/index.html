@@ -292,7 +292,7 @@ canvas {
   <div class="stat-card"><div class="stat-val" id="stat-shots">0</div><div class="stat-lbl">Shots</div></div>
   <div class="stat-card"><div class="stat-val" id="stat-goals">0</div><div class="stat-lbl">Goals</div></div>
   <div class="stat-card"><div class="stat-val" id="stat-rate">—</div><div class="stat-lbl">Rate</div></div>
-  <div class="stat-card"><div class="stat-val" id="stat-streak">0</div><div class="stat-lbl">Streak</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-streak">0</div><div class="stat-lbl">Best 🔥</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -310,7 +310,7 @@ const API = '';  // empty = same origin (Flask serves both)
 let userId = null;
 let selectedStake = 200;
 let animating = false;
-let stats = { shots: 0, goals: 0, streak: 0 };
+let stats = { shots: 0, goals: 0, streak: 0, best_streak: 0 };
 let particles = [];
 
 // ─── CANVAS ─────────────────────────────────────────────
@@ -327,7 +327,6 @@ let keeper = { x: GOAL.x + GOAL.w/2 - KEEPER.w/2, y: GOAL.y + GOAL.h - KEEPER.h 
 // ─── INIT ────────────────────────────────────────────────
 async function init() {
   try {
-    // Pass Telegram initData so the server can identify the user
     const initData = tg?.initData || '';
     const res  = await fetch(`${API}/create_user`, {
       method: 'POST',
@@ -338,11 +337,22 @@ async function init() {
     userId = data.user_id;
     updateBalance(data.balance);
 
+    // Restore session stats from server
+    stats.shots       = data.shots       || 0;
+    stats.goals       = data.goals       || 0;
+    stats.streak      = data.streak      || 0;
+    stats.best_streak = data.best_streak || 0;
+    updateStats();
+
     // Show personalised greeting inside Telegram
-    if (tg && data.first_name) {
+    if (tg && data.first_name && data.first_name !== 'Player') {
       const el = document.getElementById('tg-greeting');
-      el.textContent = 'Hey, ' + data.first_name + ' !';
+      el.textContent = 'Hey, ' + data.first_name + '!';
       el.style.display = 'block';
+    }
+
+    if (data.refilled) {
+      showToast('💰 Balance refilled to 1,000★!');
     }
 
     drawScene();
@@ -420,7 +430,8 @@ async function shoot(direction) {
       // Update stats
       stats.shots++;
       if (isWin) stats.goals++;
-      stats.streak = result.streak || 0;
+      stats.streak      = result.streak      || 0;
+      stats.best_streak = result.best_streak || stats.best_streak || 0;
       updateStats();
       updateBalance(result.balance);
 
@@ -603,8 +614,8 @@ function updateStats() {
   document.getElementById('stat-shots').textContent  = stats.shots;
   document.getElementById('stat-goals').textContent  = stats.goals;
   document.getElementById('stat-rate').textContent   = stats.shots ? Math.round(stats.goals / stats.shots * 100) + '%' : '—';
-  document.getElementById('stat-streak').textContent = stats.streak;
-  document.getElementById('streak-fill').style.width = Math.min(stats.streak * 20, 100) + '%';
+  document.getElementById('stat-streak').textContent = stats.best_streak || 0;
+  document.getElementById('streak-fill').style.width = Math.min((stats.streak || 0) * 20, 100) + '%';
 }
 
 function showBadge(isWin) {
