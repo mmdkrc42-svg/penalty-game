@@ -20,6 +20,9 @@ export enum GameResult {
 }
 
 @Entity('game_rounds')
+@Index(['userId', 'type'])
+@Index(['userId', 'createdAt'])
+@Index(['type', 'createdAt'])
 export class GameRound {
   @PrimaryGeneratedColumn('uuid')
   id: string;

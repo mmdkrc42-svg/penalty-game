@@ -6,11 +6,25 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Case } from './entities/case.entity';
-import { CaseItem } from './entities/case-item.entity';
+import { CaseItem, ItemRarity } from './entities/case-item.entity';
 import { InventoryItem, ItemStatus } from '../inventory/entities/inventory-item.entity';
 import { EconomyService } from '../economy/economy.service';
 import { UsersService } from '../users/users.service';
 import { TransactionType } from '../economy/entities/transaction.entity';
+import { AchievementsService } from '../achievements/achievements.service';
+import { MissionsService } from '../missions/missions.service';
+import { VipService } from '../vip/vip.service';
+import { EventsGateway } from '../websocket/events.gateway';
+import { AppLogger } from '../common/logger/app-logger.service';
+
+const RARITY_LEVEL: Record<ItemRarity, number> = {
+  [ItemRarity.COMMON]: 1,
+  [ItemRarity.UNCOMMON]: 2,
+  [ItemRarity.RARE]: 3,
+  [ItemRarity.EPIC]: 4,
+  [ItemRarity.LEGENDARY]: 5,
+  [ItemRarity.MYTHIC]: 6,
+};
 
 @Injectable()
 export class CasesService {
@@ -20,7 +34,14 @@ export class CasesService {
     @InjectRepository(InventoryItem) private readonly inventoryRepo: Repository<InventoryItem>,
     private readonly economyService: EconomyService,
     private readonly usersService: UsersService,
-  ) {}
+    private readonly achievementsService: AchievementsService,
+    private readonly missionsService: MissionsService,
+    private readonly vipService: VipService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly logger: AppLogger,
+  ) {
+    this.logger.setContext('CasesService');
+  }
 
   async findAll(category?: string) {
     const qb = this.caseRepo.createQueryBuilder('case')
@@ -47,6 +68,7 @@ export class CasesService {
     case: Case;
     wonValue: number;
     xpGained: number;
+    newAchievements: any[];
   }> {
     const caseEntity = await this.findOne(caseId);
     const activeItems = caseEntity.items.filter((i) => i.active);
@@ -55,7 +77,7 @@ export class CasesService {
       throw new BadRequestException('Case has no active items');
     }
 
-    await this.economyService.debit(
+    const { wallet } = await this.economyService.debit(
       userId,
       Number(caseEntity.price),
       TransactionType.CASE_OPEN,
@@ -86,12 +108,55 @@ export class CasesService {
     user.totalCasesOpened += 1;
     await this.usersService.checkLevelUp(user);
 
+    this.logger.debug('Case opened', { userId, caseId, item: wonItem.name, rarity: wonItem.rarity });
+
+    // Fire-and-forget integrations — never throw on these
+    const newAchievements = await this.runPostOpenSideEffects(
+      userId,
+      user,
+      caseEntity.price,
+      wonItem,
+      wallet.balance,
+    ).catch((err) => {
+      this.logger.error('Post-open side effects failed', err);
+      return [];
+    });
+
     return {
       item: inventoryItem,
       case: caseEntity,
       wonValue: Number(wonItem.value),
       xpGained,
+      newAchievements,
     };
+  }
+
+  private async runPostOpenSideEffects(
+    userId: string,
+    user: any,
+    casePrice: number | bigint,
+    wonItem: CaseItem,
+    newBalance: number | bigint,
+  ) {
+    const price = Number(casePrice);
+
+    await Promise.allSettled([
+      this.missionsService.updateProgress(userId, 'cases_opened', 1),
+      this.missionsService.updateProgress(userId, 'coins_spent', price),
+    ]);
+
+    const { vip, promoted, newTier } = await this.vipService.addWager(userId, price);
+    if (promoted && newTier) {
+      this.eventsGateway.emitVipUpgrade(userId, { tier: newTier, benefits: this.vipService.getBenefits(newTier) });
+    }
+
+    const newAchievements = await this.achievementsService.triggerCasesCheck(userId, user.totalCasesOpened);
+    const rarityLevel = RARITY_LEVEL[wonItem.rarity] || 1;
+    await this.achievementsService.triggerRarityCheck(userId, rarityLevel);
+
+    this.eventsGateway.emitBalanceUpdate(userId, Number(newBalance));
+
+    return newAchievements;
   }
 
   private weightedRandom(items: CaseItem[]): CaseItem {

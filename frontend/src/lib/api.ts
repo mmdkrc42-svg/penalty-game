@@ -115,3 +115,25 @@ export const leaderboardApi = {
   getRichest: () => api.get('/leaderboard/richest'),
   getMyRank: () => api.get('/leaderboard/my-rank'),
 };
+
+// Missions
+export const missionsApi = {
+  getAll: () => api.get('/missions'),
+  claim: (missionId: string) => api.post(`/missions/${missionId}/claim`),
+};
+
+// Achievements
+export const achievementsApi = {
+  getAll: () => api.get('/achievements'),
+};
+
+// VIP
+export const vipApi = {
+  getStatus: () => api.get('/vip/status'),
+};
+
+// Prestige
+export const prestigeApi = {
+  getStatus: () => api.get('/prestige/status'),
+  prestige: () => api.post('/prestige'),
+};

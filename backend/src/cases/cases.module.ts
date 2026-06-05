@@ -7,6 +7,7 @@ import { CaseItem } from './entities/case-item.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { EconomyModule } from '../economy/economy.module';
 import { UsersModule } from '../users/users.module';
+// AchievementsModule, MissionsModule, VipModule, WebsocketModule are @Global
 
 @Module({
   imports: [

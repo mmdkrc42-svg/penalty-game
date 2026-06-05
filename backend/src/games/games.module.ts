@@ -16,6 +16,7 @@ import { UsersModule } from '../users/users.module';
     TypeOrmModule.forFeature([GameRound, InventoryItem]),
     EconomyModule,
     UsersModule,
+    // AchievementsModule, MissionsModule, VipModule, WebsocketModule are @Global
   ],
   controllers: [CrashController, CoinflipController, UpgradeController],
   providers: [CrashService, CoinflipService, UpgradeService],

@@ -5,6 +5,7 @@ import { BottomNav } from './BottomNav';
 import { useAuthStore } from '@/store/auth.store';
 import { CoinIcon } from '@/components/ui/CoinIcon';
 import { formatCoins } from '@/lib/utils';
+import { useSocket } from '@/hooks/useSocket';
 
 interface Props {
   children: ReactNode;
@@ -16,6 +17,7 @@ interface Props {
 export function AppShell({ children, title, showBalance = true, className = '' }: Props) {
   const { user, isAuthenticated, refreshUser } = useAuthStore();
   const router = useRouter();
+  useSocket(); // Initialize WebSocket connection for real-time updates
 
   useEffect(() => {
     if (!isAuthenticated) {

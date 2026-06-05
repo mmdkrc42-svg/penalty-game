@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { TerminusModule } from '@nestjs/terminus';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EconomyModule } from './economy/economy.module';
@@ -12,6 +13,16 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { AdminModule } from './admin/admin.module';
 import { DatabaseModule } from './database/database.module';
+import { LoggerModule } from './common/logger/logger.module';
+import { AuditModule } from './audit/audit.module';
+import { AntiFraudModule } from './anti-fraud/anti-fraud.module';
+import { AchievementsModule } from './achievements/achievements.module';
+import { MissionsModule } from './missions/missions.module';
+import { VipModule } from './vip/vip.module';
+import { WebsocketModule } from './websocket/websocket.module';
+import { HealthModule } from './health/health.module';
+import { JobsModule } from './jobs/jobs.module';
+import { PrestigeModule } from './prestige/prestige.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -47,7 +58,18 @@ import configuration from './config/configuration';
         ],
       }),
     }),
+    TerminusModule,
     DatabaseModule,
+    LoggerModule,
+    AuditModule,
+    AntiFraudModule,
+    AchievementsModule,
+    MissionsModule,
+    VipModule,
+    WebsocketModule,
+    HealthModule,
+    JobsModule,
+    PrestigeModule,
     AuthModule,
     UsersModule,
     EconomyModule,

@@ -19,6 +19,8 @@ export enum ItemStatus {
 }
 
 @Entity('inventory_items')
+@Index(['userId', 'status'])
+@Index(['userId', 'createdAt'])
 export class InventoryItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;

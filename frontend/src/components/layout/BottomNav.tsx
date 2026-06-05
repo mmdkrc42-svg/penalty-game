@@ -37,11 +37,12 @@ const navItems = [
     ),
   },
   {
-    href: '/leaderboard',
-    label: 'Ranks',
+    href: '/missions',
+    label: 'Missions',
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
-        <path d="M18 20V10M12 20V4M6 20v-6"/>
+        <path d="M9 12l2 2 4-4"/>
+        <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z"/>
       </svg>
     ),
   },
